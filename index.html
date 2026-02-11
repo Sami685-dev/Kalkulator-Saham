@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Risk Manager Pro (Fee Adjusted)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #18181b; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        /* Remove number arrow on inputs */
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body class="bg-black text-zinc-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- ICONS ---
+        const Icon = ({ children, size = 18, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Settings = (props) => <Icon {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Icon>;
+        const Trash2 = (props) => <Icon {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const Plus = (props) => <Icon {...props}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const AlertTriangle = (props) => <Icon {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></Icon>;
+        const Key = (props) => <Icon {...props}><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></Icon>;
+        const Cpu = (props) => <Icon {...props}><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></Icon>;
+        const RefreshCw = (props) => <Icon {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></Icon>;
+        const ShieldCheck = (props) => <Icon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></Icon>;
+        const ShieldAlert = (props) => <Icon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></Icon>;
+        const TrendingUp = (props) => <Icon {...props}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></Icon>;
+        const Edit2 = (props) => <Icon {...props}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
+
+        const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Math.abs(n));
+
+        function App() {
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+            
+            // --- Global Settings ---
+            const [totalCapital, setTotalCapital] = useState(100000000); 
+            const [riskPerTradePct, setRiskPerTradePct] = useState(2); 
+            const [globalRiskLimitPct, setGlobalRiskLimitPct] = useState(6); 
+            
+            // --- Fees ---
+            const BUY_FEE = 0.0015; // 0.15%
+            const SELL_FEE = 0.0025; // 0.25%
+
+            // --- Portfolio Data ---
+            const [portfolio, setPortfolio] = useState([]);
+            
+            // --- Form Input State ---
+            const [newTicker, setNewTicker] = useState('');
+            const [newEntry, setNewEntry] = useState('');
+            const [newSL, setNewSL] = useState('');
+            const [newTP, setNewTP] = useState('');
+
+            // --- AI State ---
+            const [aiAnalysis, setAiAnalysis] = useState('');
+            const [isAiLoading, setIsAiLoading] = useState(false);
+
+            // --- Calculations (Updated with Fees) ---
+            const portfolioSummary = useMemo(() => {
+                let totalExposure = 0;
+                let totalRisk = 0;
+                let totalPotentialGain = 0;
+
+                const processedPortfolio = portfolio.map(item => {
+                    // 1. Calculate Prices Net of Fees
+                    // Buy Cost per share approx = Entry * (1 + Buy Fee)
+                    const buyCostPerShare = item.entry * (1 + BUY_FEE);
+                    
+                    // Net Sell at SL = SL * (1 - Sell Fee)
+                    const netSellSLPerShare = item.sl * (1 - SELL_FEE);
+                    
+                    // Net Sell at TP = TP * (1 - Sell Fee)
+                    const netSellTPPerShare = item.tp * (1 - SELL_FEE);
+
+                    // 2. Real Risk & Reward Per Share (Including Fees)
+                    const riskPerShareNet = buyCostPerShare - netSellSLPerShare;
+                    const rewardPerShareNet = netSellTPPerShare - buyCostPerShare;
+                    
+                    // 3. RRR
+                    const rrr = riskPerShareNet > 0 ? rewardPerShareNet / riskPerShareNet : 0;
+                    
+                    // 4. Max Risk Allowed (Rupiah)
+                    const maxRiskRpPerTrade = totalCapital * (riskPerTradePct / 100);
+                    
+                    // 5. Calculate Lots
+                    // Formula: MaxRisk / (RiskPerShareNet * 100)
+                    let maxLots = 0;
+                    if (riskPerShareNet > 0) {
+                        maxLots = Math.floor(maxRiskRpPerTrade / (riskPerShareNet * 100));
+                    }
+                    
+                    // 6. Totals
+                    // Capital Required = Lots * 100 * Entry * (1+Fee)
+                    const capitalRequired = maxLots * 100 * item.entry * (1 + BUY_FEE);
+                    
+                    // Risk Amount = Lots * 100 * RiskPerShareNet
+                    const riskAmount = maxLots * 100 * riskPerShareNet;
+                    
+                    // Gain Amount = Lots * 100 * RewardPerShareNet
+                    const gainAmount = maxLots * 100 * rewardPerShareNet;
+
+                    totalExposure += capitalRequired;
+                    totalRisk += riskAmount;
+                    totalPotentialGain += gainAmount;
+
+                    return { ...item, rrr, maxLots, capitalRequired, riskAmount, gainAmount };
+                });
+
+                const currentGlobalRiskPct = totalCapital > 0 ? (totalRisk / totalCapital) * 100 : 0;
+
+                return {
+                    items: processedPortfolio,
+                    totalExposure,
+                    totalRisk,
+                    totalPotentialGain,
+                    currentGlobalRiskPct,
+                    remainingCapital: totalCapital - totalExposure,
+                    isOverBudget: totalExposure > totalCapital,
+                    isOverGlobalRisk: currentGlobalRiskPct > globalRiskLimitPct
+                };
+            }, [portfolio, totalCapital, riskPerTradePct, globalRiskLimitPct]);
+
+            // --- Handlers ---
+            const addStock = (e) => {
+                e.preventDefault();
+                if (!newTicker || !newEntry || !newSL || !newTP) return alert("Mohon lengkapi semua data");
+                if (Number(newSL) >= Number(newEntry)) return alert("Stop Loss harus di bawah Entry Price (Long Position)");
+                
+                const newItem = {
+                    id: Date.now(),
+                    ticker: newTicker.toUpperCase(),
+                    entry: Number(newEntry),
+                    sl: Number(newSL),
+                    tp: Number(newTP)
+                };
+                
+                setPortfolio([...portfolio, newItem]);
+                setNewTicker(''); setNewEntry(''); setNewSL(''); setNewTP('');
+            };
+
+            const removeStock = (id) => {
+                setPortfolio(portfolio.filter(item => item.id !== id));
+            };
+
+            // Live Edit Handler
+            const updateStock = (id, field, value) => {
+                const numValue = Number(value);
+                setPortfolio(portfolio.map(item => {
+                    if (item.id === id) {
+                        return { ...item, [field]: numValue };
+                    }
+                    return item;
+                }));
+            };
+
+            const handleAIAnalysis = async () => {
+                if (!apiKey) {
+                    const key = prompt("Masukkan Gemini API Key:");
+                    if (key) { setApiKey(key); localStorage.setItem('gemini_api_key', key); }
+                    else return;
+                }
+                
+                setIsAiLoading(true);
+                try {
+                    const model = "gemini-2.5-flash-preview-09-2025"; 
+                    const dataPayload = {
+                        totalCapital: totalCapital,
+                        globalRiskLimit: `${globalRiskLimitPct}%`,
+                        currentTotalRisk: `${portfolioSummary.currentGlobalRiskPct.toFixed(2)}%`,
+                        portfolioExposure: portfolioSummary.totalExposure,
+                        totalPotentialUpside: portfolioSummary.totalPotentialGain,
+                        stocks: portfolioSummary.items.map(s => ({
+                            ticker: s.ticker,
+                            rrr: s.rrr.toFixed(2),
+                            riskAmt: s.riskAmount,
+                            rewardAmt: s.gainAmount
+                        }))
+                    };
+
+                    const prompt = `
+                        Bertindak sebagai Senior Portfolio Manager. Analisa data portofolio (Fee: Buy 0.15%, Sell 0.25%) berikut: ${JSON.stringify(dataPayload)}.
+                        
+                        Poin Utama:
+                        1. Risk vs Reward Profile.
+                        2. Peringatan Limit Global.
+                        3. Saran optimasi.
+                        
+                        Gunakan Bahasa Indonesia profesional. Format bullet points.
+                    `;
+
+                    const response = await fetch(
+                        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey || localStorage.getItem('gemini_api_key')}`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+                        }
+                    );
+                    const data = await response.json();
+                    setAiAnalysis(data.candidates?.[0]?.content?.parts?.[0]?.text || "No response");
+                } catch (error) {
+                    alert("AI Error: " + error.message);
+                } finally {
+                    setIsAiLoading(false);
+                }
+            };
+
+            const theme = {
+                input: "bg-zinc-900 border border-zinc-700 p-2 text-sm text-white focus:border-emerald-500 outline-none w-full placeholder-zinc-600",
+                tableInput: "bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-emerald-500 outline-none text-white w-20 px-1 transition-colors text-right",
+                label: "block text-[10px] text-zinc-500 uppercase font-bold mb-1",
+                th: "text-left text-[10px] uppercase font-bold text-zinc-500 p-3 border-b border-zinc-800",
+                td: "p-3 border-b border-zinc-800 text-sm font-mono align-middle"
+            };
+
+            return (
+                <div className="min-h-screen bg-black text-zinc-300 font-sans selection:bg-emerald-900 selection:text-white pb-20">
+                    <header className="border-b border-zinc-800 p-4 sticky top-0 bg-black/95 backdrop-blur z-20">
+                        <div className="max-w-7xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <ShieldCheck className="text-emerald-500" />
+                                <h1 className="font-bold tracking-tight text-white uppercase">Pro <span className="text-zinc-500 font-normal">Manager</span> <span className="text-[10px] text-zinc-600 border border-zinc-800 px-1 rounded ml-1">FEE ADJUSTED</span></h1>
+                            </div>
+                            <button onClick={() => {const k = prompt("API Key:"); if(k){setApiKey(k); localStorage.setItem('gemini_api_key', k)}}} className={`text-xs font-mono px-3 py-1 border rounded ${apiKey ? 'border-emerald-900 text-emerald-500' : 'border-zinc-700 text-zinc-500'}`}>
+                                {apiKey ? "AI READY" : "SET API KEY"}
+                            </button>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+                        
+                        {/* 1. Global Hybrid Settings */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Input Panel */}
+                            <div className="md:col-span-1 space-y-4 p-5 border border-zinc-800 bg-zinc-950">
+                                <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 mb-4">
+                                    <Settings size={14} className="text-zinc-500" />
+                                    <h3 className="text-xs font-bold text-white uppercase tracking-widest">Config</h3>
+                                </div>
+                                <div>
+                                    <label className={theme.label}>Total Equity (RDN)</label>
+                                    <input type="number" value={totalCapital} onChange={e => setTotalCapital(Number(e.target.value))} className={theme.input} />
+                                </div>
+                                <div>
+                                    <label className={theme.label}>Risk Per Trade (%)</label>
+                                    <input type="number" step="0.5" value={riskPerTradePct} onChange={e => setRiskPerTradePct(Number(e.target.value))} className={theme.input} />
+                                </div>
+                                <div>
+                                    <label className={theme.label}>Global Risk Limit (%)</label>
+                                    <input type="number" step="1" value={globalRiskLimitPct} onChange={e => setGlobalRiskLimitPct(Number(e.target.value))} className={`${theme.input} border-amber-900/50 focus:border-amber-500`} />
+                                </div>
+                            </div>
+
+                            {/* Summary Cards */}
+                            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* Capital Usage */}
+                                <div className={`p-4 border ${portfolioSummary.isOverBudget ? 'border-red-600 bg-red-900/10' : 'border-zinc-800 bg-zinc-950'} flex flex-col justify-between`}>
+                                    <span className="text-[10px] uppercase font-bold text-zinc-500">Capital Exposure</span>
+                                    <div className={`text-xl lg:text-2xl font-mono font-bold ${portfolioSummary.isOverBudget ? 'text-red-500' : 'text-white'}`}>
+                                        {formatRupiah(portfolioSummary.totalExposure)}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-1">
+                                        Used: {((portfolioSummary.totalExposure / totalCapital) * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+
+                                {/* Available Cash */}
+                                <div className="p-4 border border-zinc-800 bg-zinc-950 flex flex-col justify-between">
+                                    <span className="text-[10px] uppercase font-bold text-zinc-500">Available Cash</span>
+                                    <div className={`text-xl lg:text-2xl font-mono font-bold ${portfolioSummary.remainingCapital < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                        {formatRupiah(portfolioSummary.remainingCapital)}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-1">Buying power left</div>
+                                </div>
+
+                                {/* Global Risk */}
+                                <div className={`p-4 border ${portfolioSummary.isOverGlobalRisk ? 'border-amber-600 bg-amber-900/10' : 'border-zinc-800 bg-zinc-950'} flex flex-col justify-between`}>
+                                    <span className="text-[10px] uppercase font-bold text-zinc-500">Portfolio Risk</span>
+                                    <div className={`text-xl lg:text-2xl font-mono font-bold ${portfolioSummary.isOverGlobalRisk ? 'text-amber-500' : 'text-rose-500'}`}>
+                                        {portfolioSummary.currentGlobalRiskPct.toFixed(2)}%
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-1 flex justify-between">
+                                        <span>Limit: {globalRiskLimitPct}%</span>
+                                        <span>{formatRupiah(portfolioSummary.totalRisk)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Projected Reward */}
+                                <div className="p-4 border border-zinc-800 bg-zinc-950 flex flex-col justify-between">
+                                    <span className="text-[10px] uppercase font-bold text-zinc-500">Projected Upside</span>
+                                    <div className="text-xl lg:text-2xl font-mono font-bold text-emerald-500">
+                                        {formatRupiah(portfolioSummary.totalPotentialGain)}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-1 flex items-center gap-1">
+                                        <TrendingUp size={10} />
+                                        <span>If all TPs hit</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. Add Stock Form */}
+                        <form onSubmit={addStock} className="grid grid-cols-12 gap-2 p-4 border border-zinc-800 bg-zinc-900/30 items-end">
+                            <div className="col-span-2">
+                                <label className={theme.label}>Ticker</label>
+                                <input placeholder="BBRI" value={newTicker} onChange={e => setNewTicker(e.target.value)} className={theme.input} />
+                            </div>
+                            <div className="col-span-3">
+                                <label className={theme.label}>Entry Price</label>
+                                <input type="number" placeholder="Entry" value={newEntry} onChange={e => setNewEntry(e.target.value)} className={theme.input} />
+                            </div>
+                            <div className="col-span-3">
+                                <label className={theme.label}>Stop Loss</label>
+                                <input type="number" placeholder="SL" value={newSL} onChange={e => setNewSL(e.target.value)} className={`${theme.input} border-red-900/50 focus:border-red-500`} />
+                            </div>
+                            <div className="col-span-3">
+                                <label className={theme.label}>Take Profit</label>
+                                <input type="number" placeholder="TP" value={newTP} onChange={e => setNewTP(e.target.value)} className={`${theme.input} border-emerald-900/50 focus:border-emerald-500`} />
+                            </div>
+                            <div className="col-span-1">
+                                <button type="submit" className="w-full h-[38px] bg-white text-black font-bold flex items-center justify-center hover:bg-zinc-200 transition-colors">
+                                    <Plus size={18} />
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* 3. Portfolio Table */}
+                        <div className="border border-zinc-800 bg-zinc-950 overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[1000px]">
+                                <thead>
+                                    <tr className="bg-zinc-900/50">
+                                        <th className={theme.th}>Ticker</th>
+                                        <th className={theme.th}>Entry</th>
+                                        <th className={theme.th}>Stop Loss</th>
+                                        <th className={theme.th}>Take Profit</th>
+                                        <th className={theme.th}>R/R Ratio</th>
+                                        <th className={theme.th}>Max Lots</th>
+                                        <th className={theme.th}>Capital (w/ Fee)</th>
+                                        <th className={theme.th}>Risk (Down)</th>
+                                        <th className={theme.th}>Reward (Up)</th>
+                                        <th className={theme.th}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {portfolioSummary.items.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="10" className="p-12 text-center text-zinc-600 text-sm italic">
+                                                No active trades. Add a ticker above.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        portfolioSummary.items.map((item) => (
+                                            <tr key={item.id} className="hover:bg-zinc-900/30 transition-colors group border-b border-zinc-800 last:border-0">
+                                                <td className={`${theme.td} font-bold text-white`}>{item.ticker}</td>
+                                                
+                                                {/* Editable Columns */}
+                                                <td className={theme.td}>
+                                                    <input type="number" value={item.entry} onChange={(e) => updateStock(item.id, 'entry', e.target.value)} className={theme.tableInput} />
+                                                </td>
+                                                <td className={theme.td}>
+                                                    <input type="number" value={item.sl} onChange={(e) => updateStock(item.id, 'sl', e.target.value)} className={`${theme.tableInput} text-red-400`} />
+                                                </td>
+                                                <td className={theme.td}>
+                                                    <input type="number" value={item.tp} onChange={(e) => updateStock(item.id, 'tp', e.target.value)} className={`${theme.tableInput} text-emerald-400`} />
+                                                </td>
+
+                                                <td className={theme.td}>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.rrr >= 2 ? 'bg-emerald-900 text-emerald-400' : item.rrr >= 1.5 ? 'bg-blue-900 text-blue-400' : 'bg-red-900 text-red-400'}`}>
+                                                        1 : {item.rrr.toFixed(2)}
+                                                    </span>
+                                                </td>
+                                                <td className={`${theme.td} text-lg text-white`}>{item.maxLots}</td>
+                                                <td className={`${theme.td} text-zinc-400`}>{formatRupiah(item.capitalRequired)}</td>
+                                                <td className={`${theme.td} text-red-500 font-bold`}>{formatRupiah(item.riskAmount)}</td>
+                                                <td className={`${theme.td} text-emerald-500 font-bold`}>{formatRupiah(item.gainAmount)}</td>
+                                                <td className={theme.td}>
+                                                    <button onClick={() => removeStock(item.id)} className="text-zinc-700 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* 4. AI Strategic Audit */}
+                        <div className="border border-zinc-800 bg-zinc-900/20 p-6">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-2 text-zinc-400">
+                                    <Cpu size={18} />
+                                    <h3 className="text-xs font-bold uppercase tracking-widest">AI Audit (Fee Adjusted)</h3>
+                                </div>
+                                <button 
+                                    onClick={handleAIAnalysis}
+                                    disabled={isAiLoading || portfolio.length === 0}
+                                    className={`px-4 py-2 text-[10px] font-bold uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border transition-all ${false ? 'bg-white text-black border-white hover:bg-zinc-200' : 'bg-black text-white border-black hover:bg-zinc-800'}`}
+                                >
+                                    {isAiLoading ? <RefreshCw className="animate-spin" size={12}/> : <ShieldCheck size={12}/>}
+                                    {isAiLoading ? "Processing..." : "Run Audit"}
+                                </button>
+                            </div>
+
+                            <div className="min-h-[60px] text-sm text-zinc-300 font-mono leading-relaxed border-l-2 border-zinc-800 pl-4">
+                                {isAiLoading ? (
+                                    <div className="opacity-50 flex items-center gap-2">Menganalisis korelasi risiko dan kepatuhan terhadap limit global...</div>
+                                ) : aiAnalysis ? (
+                                    <div className="whitespace-pre-line animate-in fade-in slide-in-from-left-2 duration-500">{aiAnalysis}</div>
+                                ) : (
+                                    <p className="opacity-40 italic">Klik audit untuk memvalidasi apakah komposisi portofolio Anda sudah optimal.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Bottom Alerts */}
+                        <div className="fixed bottom-6 right-6 space-y-2 z-50">
+                            {portfolioSummary.isOverBudget && (
+                                <div className="bg-red-600 text-white px-6 py-3 rounded shadow-2xl flex items-center gap-3 animate-in slide-in-from-right">
+                                    <AlertTriangle fill="white" className="text-red-600" />
+                                    <span className="font-bold text-xs uppercase tracking-wider">Warning: Insufficient Buying Power</span>
+                                </div>
+                            )}
+                            {portfolioSummary.isOverGlobalRisk && (
+                                <div className="bg-amber-600 text-white px-6 py-3 rounded shadow-2xl flex items-center gap-3 animate-in slide-in-from-right">
+                                    <ShieldAlert fill="white" className="text-amber-600" />
+                                    <span className="font-bold text-xs uppercase tracking-wider">Alert: Global Risk Limit Exceeded</span>
+                                </div>
+                            )}
+                        </div>
+
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
